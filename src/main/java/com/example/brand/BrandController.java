@@ -4,11 +4,18 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.List;
 
+import javax.servlet.ServletOutputStream;
+import javax.servlet.http.HttpServletResponse;
+
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.apache.tomcat.util.http.fileupload.ByteArrayOutputStream;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -133,7 +140,7 @@ public class BrandController {
      * @return ブランド一覧画面
      */
     @GetMapping("/download")
-    public String excelDwnload(String keyword) {
+    public String excelDwnload(HttpServletResponse response) throws IOException {
     	List<Brand> brands = brandService.listAll();
     	//Excelファイルへアクセス
     	Workbook outputWorkbook = new XSSFWorkbook();
@@ -144,20 +151,27 @@ public class BrandController {
     	outputRow.createCell(0).setCellValue("ID");
     	outputRow.createCell(1).setCellValue("名前");
 
-    	//セルに値設定
+
     	int rowNum = 1;
     	for(Brand brand: brands) {
     		Row row = outputSheet.createRow(rowNum++);
     		row.createCell(0).setCellValue(brand.getId());
     		row.createCell(1).setCellValue(brand.getName());
+
     	}
 
-    	try (FileOutputStream out = new FileOutputStream("Brand.xlsx")) {
-    		outputWorkbook.write(out);
-    		outputWorkbook.close();
-    	} catch(IOException e) {
-    		e.printStackTrace();
-    	}
+
+    	ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+    	outputWorkbook.write(outputStream);
+    	outputWorkbook.close();
+
+
+    	HttpHeaders headers = new HttpHeaders();
+    	headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+    	headers.setContentDispositionFormData("attachment", "brand.xlsx");
+
+    	ResponseEntity.ok().headers(headers).body(outputStream.toByteArray());
+
          return "redirect:/brands";
     }
 
